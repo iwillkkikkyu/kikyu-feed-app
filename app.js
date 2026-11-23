@@ -285,7 +285,8 @@
 
   function card(it, { pending = false } = {}) {
     const replies = [...(it.replies || []).map((r) => ({ ...r })), ...state.pendingReplies.filter((r) => r.item === it.id).map((r) => ({ ...r, at: r.sent_at, pending: true }))];
-    const from = { pc: 'PC에서', agent: '에이전트가', bookmark: '옛 북마크' }[it.from] || '폰에서';
+    // 옛 북마크는 카드에 따로 표시하지 않는다 (끼뀨 11/23 "굳이 안 달아도") — 위 필터로만 거른다
+    const from = { pc: 'PC에서', agent: '에이전트가', bookmark: '북마크' }[it.from] || '폰에서';
     return el('article', { class: 'card' },
       avatar('끼뀨'),
       el('div', { class: 'body' },

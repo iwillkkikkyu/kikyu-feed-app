@@ -48,6 +48,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
         catch (e) { if (!e.busy || i >= 5) throw e; await new Promise((r) => setTimeout(r, 600 + Math.random() * 900 * (i + 1))); }
       }
     }
+    if (msg?.type === 'sendBatch') {
+      // 옛 북마크 묶음 — 파일 하나로 보낸다 (수백 번 따로 보내면 기록이 수백 줄이 된다)
+      const items = (Array.isArray(msg.items) ? msg.items : [])
+        .filter((e) => typeof e?.url === 'string' && /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/\d{1,20}$/.test(e.url))
+        .slice(0, 5000)
+        .map((e) => ({ url: e.url, text: String(e.text || '').slice(0, 6000) }));
+      if (!items.length) throw new Error('보낼 북마크가 없어.');
+      const body = { batch: items, from: 'bookmark', allow_replies: true, sent_at: new Date().toISOString() };
+      const name = `${new Date().toISOString().replace(/[-:.]/g, '')}-bookmarks.json`;
+      const put = JSON.stringify({ message: `옛 북마크 ${items.length}개`, content: b64(JSON.stringify(body)) });
+      for (let i = 0; ; i++) {
+        try { await gh(`/contents/inbox/posts/${name}`, { method: 'PUT', body: put }); return { ok: true, count: items.length }; }
+        catch (e) { if (!e.busy || i >= 5) throw e; await new Promise((r) => setTimeout(r, 1000 * (i + 1))); }
+      }
+    }
     if (msg?.type === 'check') {
       const info = await gh('');
       if (!info.permissions?.push) throw new Error('읽기는 되는데 쓰기 권한이 없어 (Contents → Read and write).');
