@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "끼뀨 피드 보내기",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "트위터(X) 트윗마다 발바닥 버튼을 달아, 메모와 함께 끼뀨 피드로 보낸다.",
   "icons": { "48": "icon-48.png", "128": "icon-128.png" },
   "permissions": ["storage"],

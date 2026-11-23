@@ -149,7 +149,8 @@
   }
 
   function bookmarksPage() {
-    const on = /^\/i\/bookmarks/.test(location.pathname);
+    // 북마크 주소가 /i/bookmarks, /i/bookmarks/폴더, /아이디/bookmarks 등으로 갈려서 넓게 잡는다 (11/23 끼뀨 화면에서 안 뜸)
+    const on = /bookmark/i.test(location.pathname);
     if (on) bulkPanel().host.hidden = false;
     else if (bulk && !bulk.running) bulk.host.hidden = true;
   }
