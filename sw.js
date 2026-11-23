@@ -1,6 +1,6 @@
 // 앱 껍데기만 저장해 둔다 (설치형 웹앱 조건 + 느린 데서 빨리 뜨게).
 // 깃허브 API(피드 내용·열쇠가 오가는 곳)는 절대 저장하지 않는다.
-const CACHE = 'kikyu-feed-v1';
+const CACHE = 'kikyu-feed-v2';
 const SHELL = ['./', 'index.html', 'app.js', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'favicon.png'];
 
 self.addEventListener('install', (e) => {

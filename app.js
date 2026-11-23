@@ -73,6 +73,7 @@
     if (r.status === 401) throw new GhError('열쇠가 안 맞거나 기한이 지났어. 설정에서 새 열쇠를 넣어 줘.');
     if (r.status === 403) throw new GhError('열쇠에 이 저장소 쓰기 권한이 없어. 열쇠 만들 때 Contents 를 "Read and write" 로 했는지 봐 줘.');
     if (r.status === 404) { const e = new GhError('저장소나 파일을 못 찾았어. 저장소 이름이나 열쇠 범위를 봐 줘.'); e.notFound = true; throw e; }
+    if (r.status === 409) { const e = new GhError('다른 기록과 순간 겹쳤어. 잠깐 뒤에 다시 해 줘.'); e.busy = true; throw e; }
     if (!r.ok) throw new GhError(`깃허브가 거절했어 (${r.status}). 잠깐 뒤에 다시 해 줘.`);
     return opts.raw ? r.text() : r.json();
   }
@@ -90,10 +91,19 @@
   const stamp = () => new Date().toISOString().replace(/[-:.]/g, '');
   const rand = () => Math.random().toString(36).slice(2, 8);
   // 기기는 언제나 "새 파일"만 만든다. 합치는 건 저장소의 자동 작업이 한다.
+  // 파일이 달라도 같은 순간에 두 기록이 들어오면 깃허브가 하나를 409 로 튕긴다(2026-11-23 실측) → 잠깐 쉬고 다시
   async function putNew(dir, obj, message) {
     const name = `${stamp()}-${rand()}.json`;
-    await gh(`/contents/${dir}/${name}`, { method: 'PUT', body: JSON.stringify({ message, content: b64(JSON.stringify(obj, null, 2)) }) });
-    return name;
+    const body = JSON.stringify({ message, content: b64(JSON.stringify(obj, null, 2)) });
+    for (let i = 0; ; i++) {
+      try {
+        await gh(`/contents/${dir}/${name}`, { method: 'PUT', body });
+        return name;
+      } catch (e) {
+        if (!e.busy || i >= 5) throw e;
+        await new Promise((r) => setTimeout(r, 600 + Math.random() * 900 * (i + 1)));
+      }
+    }
   }
 
   // ── 공유로 들어온 값 읽기

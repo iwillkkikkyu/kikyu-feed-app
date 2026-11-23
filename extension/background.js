@@ -24,6 +24,7 @@ async function gh(path, opts = {}) {
   if (r.status === 401) throw new Error('열쇠가 안 맞거나 기한이 지났어. 설정에서 새 열쇠를 넣어 줘.');
   if (r.status === 403) throw new Error('열쇠에 쓰기 권한이 없어 (Contents → Read and write).');
   if (r.status === 404) throw new Error('저장소를 못 찾았어. 저장소 이름이나 열쇠 범위를 봐 줘.');
+  if (r.status === 409) { const e = new Error('다른 기록과 순간 겹쳤어. 다시 눌러 줘.'); e.busy = true; throw e; }
   if (!r.ok) throw new Error(`깃허브가 거절했어 (${r.status}).`);
   return r.json();
 }
@@ -40,8 +41,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
         from: 'pc', allow_replies: p.allow_replies !== false, sent_at: new Date().toISOString(),
       };
       const name = `${new Date().toISOString().replace(/[-:.]/g, '')}-${Math.random().toString(36).slice(2, 8)}.json`;
-      await gh(`/contents/inbox/posts/${name}`, { method: 'PUT', body: JSON.stringify({ message: '보내기', content: b64(JSON.stringify(body, null, 2)) }) });
-      return { ok: true };
+      const put = JSON.stringify({ message: '보내기', content: b64(JSON.stringify(body, null, 2)) });
+      // 같은 순간 다른 기록과 겹치면 409 — 잠깐 쉬고 다시 (폰 앱과 같은 규칙)
+      for (let i = 0; ; i++) {
+        try { await gh(`/contents/inbox/posts/${name}`, { method: 'PUT', body: put }); return { ok: true }; }
+        catch (e) { if (!e.busy || i >= 5) throw e; await new Promise((r) => setTimeout(r, 600 + Math.random() * 900 * (i + 1))); }
+      }
     }
     if (msg?.type === 'check') {
       const info = await gh('');
