@@ -221,6 +221,8 @@
 
   function matches(it) {
     if (state.filter === 'replied' && !(it.replies || []).some((r) => r.author !== '끼뀨')) return false;
+    if (state.filter === 'sent' && it.from === 'bookmark') return false;
+    if (state.filter === 'bookmark' && it.from !== 'bookmark') return false;
     if (state.filter.startsWith('#') && !(it.tags || []).includes(state.filter.slice(1))) return false;
     if (state.q) {
       const hay = [it.memo, it.tweet?.text, it.tweet?.author_name, it.tweet?.author_handle, ...(it.tags || []), ...(it.replies || []).map((r) => r.text)].join(' ').toLowerCase();
@@ -283,7 +285,7 @@
 
   function card(it, { pending = false } = {}) {
     const replies = [...(it.replies || []).map((r) => ({ ...r })), ...state.pendingReplies.filter((r) => r.item === it.id).map((r) => ({ ...r, at: r.sent_at, pending: true }))];
-    const from = it.from === 'pc' ? 'PC에서' : it.from === 'agent' ? '에이전트가' : '폰에서';
+    const from = { pc: 'PC에서', agent: '에이전트가', bookmark: '옛 북마크' }[it.from] || '폰에서';
     return el('article', { class: 'card' },
       avatar('끼뀨'),
       el('div', { class: 'body' },
@@ -306,7 +308,7 @@
     if (!list || !state.data) return;
     const items = state.data.items.filter(matches);
     const pend = state.filter === 'all' && !state.q
-      ? state.pending.map((p, i) => ({ id: `pending-${i}`, url: p.url || '', memo: p.memo || '', from: p.from, sent_at: p.sent_at, allow_replies: p.allow_replies, tweet: { status: 'pending' }, replies: [], tags: [] }))
+      ? state.pending.filter((p) => p.from !== 'bookmark').map((p, i) => ({ id: `pending-${i}`, url: p.url || '', memo: p.memo || '', from: p.from, sent_at: p.sent_at, allow_replies: p.allow_replies, tweet: { status: 'pending' }, replies: [], tags: [] }))
       : [];
     const all = [...pend.map((p) => card(p, { pending: true })), ...items.map((it) => card(it))];
     if (!all.length) {
@@ -322,7 +324,10 @@
     const tags = [...new Set(state.data.items.flatMap((i) => i.tags || []))].slice(0, 20);
     const replied = state.data.items.filter((i) => (i.replies || []).some((r) => r.author !== '끼뀨')).length;
     const chip = (key, label) => el('button', { class: 'chip' + (state.filter === key ? ' on' : ''), text: label, onclick: () => { state.filter = key; renderFilters(); renderFeedList(); } });
-    box.replaceChildren(chip('all', '전체'), chip('replied', `답 달림 ${replied}`), ...tags.map((t) => chip('#' + t, '#' + t)));
+    const marks = state.data.items.filter((i) => i.from === 'bookmark').length;
+    box.replaceChildren(chip('all', '전체'),
+      ...(marks ? [chip('sent', '보낸 것'), chip('bookmark', `옛 북마크 ${marks}`)] : []),
+      chip('replied', `답 달림 ${replied}`), ...tags.map((t) => chip('#' + t, '#' + t)));
   }
 
   let pollTimer = null;
