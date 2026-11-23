@@ -211,6 +211,10 @@
     let data;
     try { data = JSON.parse(feedTxt); } catch { data = { items: [] }; }
     if (!Array.isArray(data.items)) data.items = [];
+    // 피드는 200개씩 쪽으로 나뉘어 있다(feed.json, feed-2.json …). 처음엔 첫 쪽만.
+    data.pages = Number(data.pages) || 1;
+    data.total = Number(data.total) || data.items.length;
+    data.loaded = 1;
     // 아직 안 채워진 것(액션 대기)도 보여 준다 — 너무 많으면 앞 10개만
     const readFile = async (f) => { try { const j = await gh(`/contents/${f.path}`); return JSON.parse(unb64(j.content)); } catch { return null; } };
     const pick = (arr) => (Array.isArray(arr) ? arr : []).filter((f) => f.name.endsWith('.json')).slice(0, 10);
@@ -317,6 +321,22 @@
         ? el('div', { class: 'empty-state' }, el('h2', { text: '맞는 게 없어' }), el('p', { text: '다른 필터를 골라 봐' }))
         : el('div', { class: 'empty-state' }, el('h2', { text: '첫 트윗을 보내 봐' }), el('p', { text: '트위터에서 공유하기를 누르고 끼뀨 피드를 고르면 여기 쌓여' })));
     } else list.replaceChildren(...all);
+    // 아직 안 받은 쪽이 있으면 맨 아래 "더 보기"
+    if (state.data.loaded < state.data.pages) {
+      const more = el('button', { class: 'btn block', style: 'margin:16px;width:calc(100% - 32px)',
+        text: `더 보기 (${state.data.loaded * 200} / ${state.data.total || '?'})` });
+      more.addEventListener('click', async () => {
+        more.disabled = true; more.textContent = '불러오는 중…';
+        try {
+          const next = JSON.parse(await gh(`/contents/feed-${state.data.loaded + 1}.json`, { raw: true }));
+          const have = new Set(state.data.items.map((i) => i.id));
+          state.data.items.push(...(next.items || []).filter((i) => !have.has(i.id)));
+          state.data.loaded += 1;
+          renderFilters(); renderFeedList();
+        } catch (e) { more.disabled = false; more.textContent = `다시 시도 — ${e.message}`; }
+      });
+      list.append(more);
+    }
   }
 
   function renderFilters() {
