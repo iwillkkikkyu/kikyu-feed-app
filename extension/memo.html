@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>끼뀨 피드로 보내기</title>
+  <style>
+    /* 이 창은 트위터 화면 위에 iframe 으로 뜬다. 여기서 친 키는 트위터가 못 본다 (11/23 "?" 가로채기 해결) */
+    :root { --bg:#fff; --text:#1f1e1c; --sub:#5f5e5a; --line:rgba(31,30,28,.2); --btn:#1f1e1c; --btnText:#faf9f5; --err:#a32d2d; --ok:#3b6d11; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#2a2927; --text:#f1efe8; --sub:#b4b2a9; --line:rgba(241,239,232,.24); --btn:#f1efe8; --btnText:#1f1e1c; --err:#f09595; --ok:#97c459; color-scheme: dark; } }
+    html, body { margin:0; height:100%; background:rgba(0,0,0,.45); font-family:"Pretendard Variable",-apple-system,"Malgun Gothic",sans-serif; }
+    .wrap { height:100%; display:flex; align-items:center; justify-content:center; }
+    .box { width:min(420px,calc(100vw - 32px)); background:var(--bg); color:var(--text); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:12px; box-sizing:border-box; }
+    .head { display:flex; align-items:center; gap:8px; font-weight:600; font-size:16px; }
+    .head svg { color:#7f77dd; }
+    .link { font-size:12px; color:var(--sub); word-break:break-all; }
+    textarea { width:100%; box-sizing:border-box; min-height:96px; resize:vertical; border:1px solid var(--line); border-radius:12px; padding:10px 12px; font:inherit; font-size:15px; background:transparent; color:var(--text); }
+    textarea:focus { outline:2px solid #7f77dd; border-color:transparent; }
+    label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--sub); }
+    .row { display:flex; gap:8px; justify-content:flex-end; }
+    button { font:inherit; font-size:14px; border-radius:99px; padding:8px 16px; cursor:pointer; border:1px solid var(--line); background:transparent; color:var(--text); }
+    button.go { background:var(--btn); color:var(--btnText); border-color:var(--btn); font-weight:600; }
+    button:disabled { opacity:.5; }
+    .msg { font-size:13px; color:var(--err); white-space:pre-wrap; } .msg.ok { color:var(--ok); }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <div class="box" role="dialog" aria-label="끼뀨 피드로 보내기">
+      <div class="head">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><ellipse cx="12" cy="15.5" rx="4.6" ry="3.8"/><ellipse cx="5.8" cy="10.2" rx="1.7" ry="2.2"/><ellipse cx="9.8" cy="6.8" rx="1.8" ry="2.4"/><ellipse cx="14.2" cy="6.8" rx="1.8" ry="2.4"/><ellipse cx="18.2" cy="10.2" rx="1.7" ry="2.2"/></svg>
+        끼뀨 피드로 보내기
+      </div>
+      <div class="link" id="link"></div>
+      <textarea id="memo" placeholder="왜 저장했어? (안 써도 돼)"></textarea>
+      <label><input type="checkbox" id="allow" checked> 에이전트들이 답 달아도 돼</label>
+      <div class="msg" id="msg"></div>
+      <div class="row"><button id="cancel">닫기</button><button class="go" id="go">보내기</button></div>
+    </div>
+  </div>
+  <script src="memo.js"></script>
+</body>
+</html>

@@ -33,75 +33,25 @@
     bar.appendChild(btn);
   }
 
-  // 메모 창 — 트위터 스타일이 섞이지 않게 그림자 영역(shadow DOM) 안에 그린다
+  // 메모 창 — 확장 자기 페이지(memo.html)를 iframe 으로 띄운다.
+  // 예전엔 트위터 화면 안(shadow DOM)에 그렸더니, 트위터가 "글자 칸이 아니네" 하고 ? 같은 키를
+  // 단축키로 가로챘다(11/23 끼뀨: "물음표는 안 써져"). iframe 안에서 친 키는 트위터 문서로 안 넘어간다.
   function openDialog(url) {
     document.getElementById('kikyu-feed-dialog')?.remove();
-    const host = document.createElement('div');
-    host.id = 'kikyu-feed-dialog';
-    const root = host.attachShadow({ mode: 'closed' });
-    const dark = matchMedia('(prefers-color-scheme: dark)').matches || getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).every((v) => +v < 60);
-    const c = dark
-      ? { bg: '#2a2927', text: '#f1efe8', sub: '#b4b2a9', line: 'rgba(241,239,232,.22)', btn: '#f1efe8', btnText: '#1f1e1c', err: '#f09595' }
-      : { bg: '#ffffff', text: '#1f1e1c', sub: '#5f5e5a', line: 'rgba(31,30,28,.2)', btn: '#1f1e1c', btnText: '#faf9f5', err: '#a32d2d' };
-    const style = document.createElement('style');
-    style.textContent = `
-      .wrap{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-family:"Pretendard Variable",-apple-system,"Malgun Gothic",sans-serif}
-      .box{width:min(420px,calc(100vw - 32px));background:${c.bg};color:${c.text};border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px}
-      .head{display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px}.head svg{color:#7f77dd}
-      .link{font-size:12px;color:${c.sub};word-break:break-all}
-      textarea{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;border:1px solid ${c.line};border-radius:12px;padding:10px 12px;font:inherit;font-size:15px;background:transparent;color:${c.text}}
-      textarea:focus{outline:2px solid #7f77dd;border-color:transparent}
-      label{display:flex;align-items:center;gap:8px;font-size:13px;color:${c.sub}}
-      .row{display:flex;gap:8px;justify-content:flex-end}
-      button{font:inherit;font-size:14px;border-radius:99px;padding:8px 16px;cursor:pointer;border:1px solid ${c.line};background:transparent;color:${c.text}}
-      button.go{background:${c.btn};color:${c.btnText};border-color:${c.btn};font-weight:600}
-      button:disabled{opacity:.5}
-      .msg{font-size:13px;color:${c.err};white-space:pre-wrap}.msg.ok{color:#639922}`;
-    const wrap = document.createElement('div'); wrap.className = 'wrap';
-    const box = document.createElement('div'); box.className = 'box'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', '끼뀨 피드로 보내기');
-    const head = document.createElement('div'); head.className = 'head'; head.innerHTML = PAW; head.append('끼뀨 피드로 보내기');
-    const link = document.createElement('div'); link.className = 'link'; link.textContent = url;
-    const memo = document.createElement('textarea'); memo.placeholder = '왜 저장했어? (안 써도 돼)';
-    const lab = document.createElement('label'); const chk = document.createElement('input'); chk.type = 'checkbox'; chk.checked = true; lab.append(chk, '에이전트들이 답 달아도 돼');
-    const msg = document.createElement('div'); msg.className = 'msg';
-    const row = document.createElement('div'); row.className = 'row';
-    const cancel = document.createElement('button'); cancel.textContent = '닫기';
-    const go = document.createElement('button'); go.className = 'go'; go.textContent = '보내기';
-    row.append(cancel, go);
-    box.append(head, link, memo, lab, msg, row); wrap.append(box); root.append(style, wrap);
-    document.body.appendChild(host);
-    setTimeout(() => memo.focus(), 30);
-
-    // 트위터 단축키(? = 단축키 목록, j·k·l 등)가 메모 칸 입력을 가로채지 않게 막는다.
-    // 메모 창 안에서 막으면 늦다 — 트위터는 문서 맨 바깥에서 먼저 듣고 있다 (11/23 끼뀨: "?" 치면 단축키 목록이 뜸).
-    // 그래서 창(window)의 가장 바깥, 잡기 단계에서 우리 창에서 난 키면 트위터에게 안 넘긴다.
-    // 글자가 써지는 건 기본 동작이라 막히지 않는다 (preventDefault 는 안 함).
-    const guard = (e) => {
-      if (!e.composedPath().includes(host)) return;
-      e.stopImmediatePropagation();
-      if (e.type === 'keydown') {
-        if (e.key === 'Escape') close();
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click();
-      }
-    };
-    const KEYS = ['keydown', 'keypress', 'keyup'];
-    KEYS.forEach((t) => window.addEventListener(t, guard, true));
-    const close = () => { KEYS.forEach((t) => window.removeEventListener(t, guard, true)); host.remove(); };
-    cancel.addEventListener('click', close);
-    wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
-    go.addEventListener('click', () => {
-      go.disabled = true; go.textContent = '보내는 중…'; msg.textContent = ''; msg.className = 'msg';
-      chrome.runtime.sendMessage({ type: 'send', payload: { url, memo: memo.value.trim(), allow_replies: chk.checked } }, (res) => {
-        if (chrome.runtime.lastError || !res?.ok) {
-          msg.textContent = res?.error || '확장이 새로 깔렸으면 이 탭을 새로고침해 줘.';
-          go.disabled = false; go.textContent = '다시 보내기';
-          return;
-        }
-        msg.className = 'msg ok'; msg.textContent = '보냈어!';
-        setTimeout(close, 700);
-      });
-    });
+    const frame = document.createElement('iframe');
+    frame.id = 'kikyu-feed-dialog';
+    frame.src = chrome.runtime.getURL('memo.html') + '?url=' + encodeURIComponent(url);
+    Object.assign(frame.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', border: '0', zIndex: '2147483647', background: 'transparent' });
+    frame.setAttribute('allowtransparency', 'true');
+    document.body.appendChild(frame);
+    frame.focus();
   }
+  // memo.html 이 "닫아 줘" 하면 치운다 — 우리 확장 페이지에서 온 말만 듣는다
+  window.addEventListener('message', (e) => {
+    if (e.origin === new URL(chrome.runtime.getURL('')).origin && e.data?.kikyuFeed === 'close') {
+      document.getElementById('kikyu-feed-dialog')?.remove();
+    }
+  });
 
   // ═══ 북마크 페이지: "북마크 전부 피드로" — 쭉 내려가며 주소를 모아 파일 하나로 보낸다
   // 트위터 목록은 화면 밖으로 나간 트윗을 지워 버리므로, 내려가는 동안 계속 주워 담는다.
