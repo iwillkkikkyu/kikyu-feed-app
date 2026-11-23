@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>끼뀨 피드 보내기 — 설정</title>
+  <style>
+    :root { --bg:#faf9f5; --card:#fff; --text:#1f1e1c; --sub:#5f5e5a; --line:rgba(31,30,28,.2); --btn:#1f1e1c; --btnText:#faf9f5; --err:#a32d2d; --ok:#3b6d11; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#1f1e1c; --card:#2a2927; --text:#f1efe8; --sub:#b4b2a9; --line:rgba(241,239,232,.24); --btn:#f1efe8; --btnText:#1f1e1c; --err:#f09595; --ok:#97c459; color-scheme: dark; } }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Pretendard Variable",-apple-system,"Malgun Gothic",sans-serif; }
+    main { max-width:480px; margin:40px auto; padding:24px; background:var(--card); border:1px solid var(--line); border-radius:16px; display:flex; flex-direction:column; gap:14px; }
+    h1 { font-size:18px; margin:0; }
+    label { font-size:13px; color:var(--sub); display:block; margin-bottom:6px; }
+    input { width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:12px; padding:10px 12px; font:inherit; background:transparent; color:var(--text); }
+    button { font:inherit; font-weight:600; border-radius:99px; padding:11px; border:0; background:var(--btn); color:var(--btnText); cursor:pointer; }
+    #msg { font-size:13px; white-space:pre-wrap; } .err { color:var(--err); } .ok { color:var(--ok); }
+    p { font-size:13px; color:var(--sub); margin:0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>끼뀨 피드 보내기 — 설정</h1>
+    <div><label for="token">열쇠 (kikyu-feed 하나에만 쓰는 토큰)</label><input id="token" type="password" placeholder="github_pat_…" autocomplete="off"></div>
+    <div><label for="repo">피드 저장소</label><input id="repo" type="text" value="iwillkkikkyu/kikyu-feed"></div>
+    <button id="save">저장하고 연결 확인</button>
+    <div id="msg"></div>
+    <p>열쇠는 이 크롬에만 저장돼. 트위터에서 트윗 아래 발바닥 버튼을 누르면 보내져.</p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
