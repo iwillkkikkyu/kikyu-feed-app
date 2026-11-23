@@ -151,3 +151,5 @@ details.diag pre { white-space: pre-wrap; word-break: break-all; background: var
 .more { border: 0; background: none; padding: 4px 0 0; color: var(--accent); font-size: 13px; cursor: pointer; }
 .thread-part { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .thread-no { font-size: 11px; color: var(--text-3); }
+.comment { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.more.quiet { color: var(--text-3); display: block; }

@@ -257,7 +257,6 @@
             } })
           : null,
         t.truncated ? el('div', { class: 'notice', text: '길어서 앞부분만 왔어 — 눌러서 원문 보기' }) : null,
-        threadBlock(t),
         photos.length ? el('div', { class: `photos n${photos.length}` }, photos.map((u) => el('img', { src: u, alt: '트윗 사진', loading: 'lazy', referrerpolicy: 'no-referrer' }))) : null,
         t.quoted?.text ? el('div', { class: 'quoted', text: `${t.quoted.author_handle ? '@' + t.quoted.author_handle + ' ' : ''}${t.quoted.text}` }) : null,
       );
@@ -283,6 +282,62 @@
       e.preventDefault(); e.stopPropagation();
       body.hidden = !body.hidden;
       e.currentTarget.textContent = body.hidden ? `스레드 ${th.length}개 더 보기` : '스레드 접기';
+    } });
+    return el('div', {}, btn, body);
+  }
+
+  // 남들이 단 댓글 — 끼뀨 11/23 "너네가 알아서 볼래?" → 저장은 해 두고 화면에선 작게 접어 둔다
+  // 처음엔 저장된 것(좋아요 순 15개), "댓글 더 가져오기"를 누를 때마다 FxTwitter 에서 다음 묶음을 그 자리에서 받아 밑에 붙인다
+  // (끼뀨 11/23 "n개씩 밑으로 계속계속 가져올 수 있게"). 넘어가는 건 트윗 번호뿐.
+  function commentsBlock(it) {
+    const t = it.tweet || {};
+    if (t.status !== 'ok' || !/^\d{1,20}$/.test(String(it.tweet_id || ''))) return null;
+    const stored = Array.isArray(t.comments) ? t.comments : [];
+    const seen = new Set();
+    const row = (c) => {
+      const key = `${c.author}|${c.text}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return el('div', { class: 'comment' },
+        el('div', { class: 'thread-no', text: `@${c.author}${c.likes ? ` · ♥ ${c.likes}` : ''}` }),
+        el('p', { class: 'tweet-text', text: c.text }));
+    };
+    const list = el('div', {}, stored.map(row));
+    const status = el('div', { class: 'hint' });
+    let cursor = null; let started = false; let done = false;
+    const moreBtn = el('button', { type: 'button', class: 'more', text: '댓글 더 가져오기' });
+    moreBtn.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (done) return;
+      moreBtn.disabled = true; moreBtn.textContent = '가져오는 중…';
+      try {
+        const q = started && cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+        const r = await fetch(`https://api.fxtwitter.com/2/conversation/${it.tweet_id}${q}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const j = await r.json();
+        started = true;
+        cursor = typeof j.cursor?.bottom === 'string' ? j.cursor.bottom : null;
+        const fresh = (Array.isArray(j.replies) ? j.replies : []).map((x) => ({
+          author: String(x.author?.screen_name || '').slice(0, 30),
+          text: String(x.text || '').replace(/^(@[A-Za-z0-9_]{1,15}\s+)+/, '').trim().slice(0, 3000),
+          likes: Number(x.likes) || 0,
+        })).filter((c) => c.text).map(row).filter(Boolean);
+        list.append(...fresh);
+        status.textContent = fresh.length ? '' : '새 댓글이 없었어';
+        if (!cursor) { done = true; moreBtn.hidden = true; status.textContent = '댓글 끝까지 다 봤어'; }
+      } catch (err) {
+        status.textContent = `못 가져왔어 (${err.message}). 다시 눌러 봐.`;
+      } finally {
+        if (!done) { moreBtn.disabled = false; moreBtn.textContent = '댓글 더 가져오기'; }
+      }
+    });
+    const body = el('div', { class: 'thread-body', hidden: true }, list, moreBtn, status);
+    const label = () => (stored.length ? `댓글 ${stored.length}개` : '댓글 보기');
+    const btn = el('button', { type: 'button', class: 'more quiet', text: label(), onclick: (e) => {
+      e.preventDefault(); e.stopPropagation();
+      body.hidden = !body.hidden;
+      e.currentTarget.textContent = body.hidden ? label() : '댓글 접기';
+      if (!body.hidden && !stored.length && !started) moreBtn.click(); // 저장된 게 없으면 바로 첫 묶음
     } });
     return el('div', {}, btn, body);
   }
@@ -318,6 +373,9 @@
           it.allow_replies === false ? el('span', { class: 'badge', text: '· 혼자 보기' }) : null),
         it.memo ? el('p', { class: 'memo', text: it.memo }) : el('p', { class: 'memo empty', text: '메모 없음' }),
         tweetBlock(it),
+        // 스레드·댓글은 트윗 상자(원문 링크) 밖에 둔다 — 읽다 누르면 트위터로 넘어가 버려서
+        threadBlock(it.tweet || {}),
+        commentsBlock(it),
         (it.tags || []).length ? el('div', { class: 'tags' }, it.tags.map((t) => el('span', { class: 'tag', text: `#${t}` }))) : null,
         el('div', { class: 'thread' },
           replies.map((r) => el('div', { class: 'reply' + (r.pending ? ' pending' : '') }, avatar(r.author, true),
