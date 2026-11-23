@@ -359,27 +359,39 @@
     const repoIn = el('input', { type: 'text', id: 'repo', value: repo, spellcheck: 'false' });
     const msg = el('div', { hidden: true });
     const save = el('button', { class: 'btn primary block', text: '저장하고 연결 확인' });
+    // 결과는 버튼 바로 아래 + 버튼 글자에도 띄운다. 폰에선 키보드가 위쪽 문구를 가려서
+    // "눌렀는데 아무것도 안 돼"로 보였다 (2026-11-23 끼뀨 폰 실측).
+    const show = (cls, text) => {
+      msg.className = cls; msg.textContent = text; msg.hidden = false;
+      try { document.activeElement?.blur(); msg.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* 옛 브라우저 */ }
+    };
     save.addEventListener('click', async () => {
       msg.hidden = true;
-      const t = tokIn.value.trim();
-      if (!t) { msg.className = 'err'; msg.textContent = '열쇠를 먼저 붙여 넣어 줘.'; msg.hidden = false; return; }
-      if (!/^[\w./-]+\/[\w.-]+$/.test(repoIn.value.trim())) { msg.className = 'err'; msg.textContent = '저장소 이름은 "아이디/저장소" 꼴이야.'; msg.hidden = false; return; }
-      if (!store.set('kf.token', t) || !store.set('kf.repo', repoIn.value.trim())) { msg.className = 'err'; msg.textContent = '이 브라우저가 저장을 막고 있어 (사생활 창이면 일반 창으로 열어 줘).'; msg.hidden = false; return; }
+      // 붙여 넣을 때 딸려 온 공백·줄바꿈·따옴표를 걷어 낸다
+      const t = tokIn.value.replace(/[\s"'`]/g, '');
+      tokIn.value = t;
+      if (!t) return show('err', '열쇠를 먼저 붙여 넣어 줘.');
+      if (!/^(github_pat_|ghp_)/.test(t)) return show('err', '열쇠가 github_pat_ 으로 시작하지 않아. 복사가 덜 됐는지 봐 줘.');
+      if (!/^[\w./-]+\/[\w.-]+$/.test(repoIn.value.trim())) return show('err', '저장소 이름은 "아이디/저장소" 꼴이야.');
+      if (!store.set('kf.token', t) || !store.set('kf.repo', repoIn.value.trim())) return show('err', '이 브라우저가 저장을 막고 있어 (사생활 창이면 일반 창으로 열어 줘).');
       save.disabled = true; save.textContent = '확인 중…';
       try {
         const info = await gh('');
         if (!info.permissions?.push) throw new GhError('읽기는 되는데 쓰기 권한이 없어. 열쇠의 Contents 를 "Read and write" 로 바꿔 줘.');
-        msg.className = 'okmsg'; msg.textContent = `연결됐어 — ${info.full_name}`; msg.hidden = false;
-        setTimeout(() => (sharedParams().send ? route() : go('feed')), 700);
-      } catch (e) { msg.className = 'err'; msg.textContent = e.message; msg.hidden = false; }
-      finally { save.disabled = false; save.textContent = '저장하고 연결 확인'; }
+        save.textContent = '연결됐어!';
+        show('okmsg', `연결됐어 — ${info.full_name}`);
+        setTimeout(() => (sharedParams().send ? route() : go('feed')), 900);
+      } catch (e) {
+        save.disabled = false; save.textContent = '다시 확인';
+        show('err', e.message);
+      }
     });
 
     $view.replaceChildren(el('div', { class: 'pane' },
       el('div', {}, el('label', { class: 'label', for: 'tok', text: '열쇠 (이 저장소에만 쓰는 토큰)' }), tokIn,
         el('div', { class: 'hint', style: 'margin-top:6px', text: '이 기기에만 저장돼. 다른 데로 안 보내.' })),
       el('div', {}, el('label', { class: 'label', for: 'repo', text: '피드 저장소' }), repoIn),
-      msg, save,
+      save, msg,
       el('details', { open: !token },
         el('summary', { class: 'label', text: '열쇠 만드는 법' }),
         el('ol', { class: 'steps' },
@@ -399,6 +411,15 @@
     if (shared.send) return renderSend(shared);
     return renderFeed();
   }
+
+  // 예상 못 한 오류는 삼키지 말고 화면 맨 위에 빨간 줄로 보여 준다 (폰에선 개발자 도구가 없어서)
+  function showFatal(text) {
+    let bar = document.getElementById('fatal');
+    if (!bar) { bar = el('div', { id: 'fatal', class: 'err', style: 'margin:8px 12px' }); document.getElementById('app').prepend(bar); }
+    bar.textContent = `앗, 오류가 났어 — 이 문장을 클로에게 알려 줘:\n${text}`;
+  }
+  window.addEventListener('error', (e) => showFatal(`${e.message} (${(e.filename || '').split('/').pop()}:${e.lineno})`));
+  window.addEventListener('unhandledrejection', (e) => showFatal(String(e.reason?.message || e.reason)));
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   route();
