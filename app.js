@@ -257,6 +257,7 @@
             } })
           : null,
         t.truncated ? el('div', { class: 'notice', text: '길어서 앞부분만 왔어 — 눌러서 원문 보기' }) : null,
+        threadBlock(t),
         photos.length ? el('div', { class: `photos n${photos.length}` }, photos.map((u) => el('img', { src: u, alt: '트윗 사진', loading: 'lazy', referrerpolicy: 'no-referrer' }))) : null,
         t.quoted?.text ? el('div', { class: 'quoted', text: `${t.quoted.author_handle ? '@' + t.quoted.author_handle + ' ' : ''}${t.quoted.text}` }) : null,
       );
@@ -265,6 +266,25 @@
     return el('a', { class: 'tweet', href, target: '_blank', rel: 'noopener noreferrer' },
       el('div', { class: 'tweet-head' }, el('span', { text: href || '(링크 없음)' })),
       el('div', { class: 'notice', text: msg }));
+  }
+
+  // 글쓴이가 이어 단 스레드 — 접어 두고 "스레드 N개 더 보기"로 펼친다
+  function threadBlock(t) {
+    const th = Array.isArray(t.thread) ? t.thread : [];
+    if (!th.length) return null;
+    const body = el('div', { class: 'thread-body', hidden: true },
+      th.map((x, i) => el('div', { class: 'thread-part' },
+        el('div', { class: 'thread-no', text: `${i + 2}/${th.length + 1}` }),
+        x.text ? el('p', { class: 'tweet-text', text: x.text }) : null,
+        (x.photos || []).map(safeImg).filter(Boolean).length
+          ? el('div', { class: `photos n${Math.min(4, x.photos.length)}` }, x.photos.map(safeImg).filter(Boolean).map((u) => el('img', { src: u, alt: '스레드 사진', loading: 'lazy', referrerpolicy: 'no-referrer' })))
+          : null)));
+    const btn = el('button', { type: 'button', class: 'more', text: `스레드 ${th.length}개 더 보기`, onclick: (e) => {
+      e.preventDefault(); e.stopPropagation();
+      body.hidden = !body.hidden;
+      e.currentTarget.textContent = body.hidden ? `스레드 ${th.length}개 더 보기` : '스레드 접기';
+    } });
+    return el('div', {}, btn, body);
   }
 
   function replyBox(it) {
