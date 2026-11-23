@@ -72,11 +72,23 @@
     document.body.appendChild(host);
     setTimeout(() => memo.focus(), 30);
 
-    const close = () => host.remove();
+    // 트위터 단축키(? = 단축키 목록, j·k·l 등)가 메모 칸 입력을 가로채지 않게 막는다.
+    // 메모 창 안에서 막으면 늦다 — 트위터는 문서 맨 바깥에서 먼저 듣고 있다 (11/23 끼뀨: "?" 치면 단축키 목록이 뜸).
+    // 그래서 창(window)의 가장 바깥, 잡기 단계에서 우리 창에서 난 키면 트위터에게 안 넘긴다.
+    // 글자가 써지는 건 기본 동작이라 막히지 않는다 (preventDefault 는 안 함).
+    const guard = (e) => {
+      if (!e.composedPath().includes(host)) return;
+      e.stopImmediatePropagation();
+      if (e.type === 'keydown') {
+        if (e.key === 'Escape') close();
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click();
+      }
+    };
+    const KEYS = ['keydown', 'keypress', 'keyup'];
+    KEYS.forEach((t) => window.addEventListener(t, guard, true));
+    const close = () => { KEYS.forEach((t) => window.removeEventListener(t, guard, true)); host.remove(); };
     cancel.addEventListener('click', close);
     wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
-    // 트위터 단축키(j·k·l 등)가 메모 칸 입력을 가로채지 않게 막는다
-    box.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') close(); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) go.click(); });
     go.addEventListener('click', () => {
       go.disabled = true; go.textContent = '보내는 중…'; msg.textContent = ''; msg.className = 'msg';
       chrome.runtime.sendMessage({ type: 'send', payload: { url, memo: memo.value.trim(), allow_replies: chk.checked } }, (res) => {
