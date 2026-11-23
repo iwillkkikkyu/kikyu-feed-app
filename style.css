@@ -148,3 +148,4 @@ details.diag pre { white-space: pre-wrap; word-break: break-all; background: var
 .done { padding: 64px 24px; text-align: center; }
 .done .paw svg { width: 44px; height: 44px; margin: 0 auto 12px; }
 .loading { padding: 40px; text-align: center; color: var(--text-3); font-size: 14px; }
+.more { border: 0; background: none; padding: 4px 0 0; color: var(--accent); font-size: 13px; cursor: pointer; }

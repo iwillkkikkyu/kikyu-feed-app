@@ -241,6 +241,16 @@
           t.author_handle ? el('span', { text: `@${t.author_handle}` }) : null,
           t.created_at ? el('span', { text: `· ${when(t.created_at)}` }) : null),
         t.text ? el('p', { class: 'tweet-text clamp', text: t.text }) : null,
+        // 8줄 넘는 긴 글은 접어 두고 "더 보기"로 펼친다 (카드 전체가 원문 링크라 누름이 새지 않게 막음)
+        t.text && (t.text.split('\n').length > 8 || t.text.length > 320)
+          ? el('button', { type: 'button', class: 'more', text: '더 보기', onclick: (e) => {
+              e.preventDefault(); e.stopPropagation();
+              const p = e.currentTarget.previousElementSibling;
+              const open = p.classList.toggle('clamp');
+              e.currentTarget.textContent = open ? '더 보기' : '접기';
+            } })
+          : null,
+        t.truncated ? el('div', { class: 'notice', text: '길어서 앞부분만 왔어 — 눌러서 원문 보기' }) : null,
         photos.length ? el('div', { class: `photos n${photos.length}` }, photos.map((u) => el('img', { src: u, alt: '트윗 사진', loading: 'lazy', referrerpolicy: 'no-referrer' }))) : null,
         t.quoted?.text ? el('div', { class: 'quoted', text: `${t.quoted.author_handle ? '@' + t.quoted.author_handle + ' ' : ''}${t.quoted.text}` }) : null,
       );
