@@ -108,6 +108,13 @@ button, input, textarea { font: inherit; color: inherit; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .tag { font-size: 12px; background: var(--tag-bg); color: var(--tag-ink); padding: 2px 9px; border-radius: 99px; }
 .badge { font-size: 12px; color: var(--text-3); margin-left: 4px; }
+.reads { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.read-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; padding: 1px 7px 1px 2px; border-radius: 99px; background: var(--surface-2); }
+.read-chip .av.small { width: 20px; height: 20px; font-size: 11px; }
+.read-chip.pending { opacity: 0.6; }
+.mark-btn { margin-left: auto; border: 1px solid var(--line); background: transparent; color: var(--text-3); font-size: 13px; padding: 3px 10px; border-radius: 99px; cursor: pointer; }
+.mark-btn.on { background: var(--tag-bg); color: var(--tag-ink); border-color: transparent; }
+.mark-btn:disabled { opacity: 0.5; }
 
 .thread { margin-top: 12px; padding-left: 12px; border-left: 2px solid var(--line); }
 .reply { display: flex; gap: 8px; padding: 6px 0; }

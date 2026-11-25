@@ -225,6 +225,7 @@
 
   function matches(it) {
     if (state.filter === 'replied' && !(it.replies || []).some((r) => r.author !== '끼뀨')) return false;
+    if (state.filter === 'unseen' && (currentReads(it).some((r) => r.author !== '끼뀨') || (it.replies || []).some((r) => r.author !== '끼뀨'))) return false;
     if (state.filter === 'sent' && it.from === 'bookmark') return false;
     if (state.filter === 'bookmark' && it.from !== 'bookmark') return false;
     if (state.filter.startsWith('#') && !(it.tags || []).includes(state.filter.slice(1))) return false;
@@ -362,8 +363,44 @@
     return el('div', {}, el('div', { class: 'reply-box' }, avatar('끼뀨', true), ta, btn), err);
   }
 
+  // 읽음 표시 — 👀 봤어 · ✔️ 확인 (끼뀨 11/25 "읽음처리되서 샤샥샤샥"). 한 사람에 하나.
+  // 저장소엔 inbox/replies 에 {item, author, mark} 파일만 넣는다. 합치는 건 서버 채우기가 한다(카드 reads).
+  const MARKS = ['👀', '✔️'];
+  function currentReads(it) {
+    const by = new Map();
+    for (const r of Array.isArray(it.reads) ? it.reads : []) if (r && r.author && MARKS.includes(r.mark)) by.set(r.author, { ...r });
+    // 아직 안 합쳐진 내 표시(보내는 중)는 위에 덮는다 — 같은 사람은 마지막 것
+    for (const r of state.pendingReplies.filter((x) => x.item === it.id && typeof x.mark === 'string')) {
+      if (MARKS.includes(r.mark)) by.set(r.author, { author: r.author, mark: r.mark, at: r.sent_at, pending: true });
+      else by.delete(r.author);
+    }
+    return [...by.values()];
+  }
+  function readsRow(it) {
+    const reads = currentReads(it);
+    const mine = reads.find((r) => r.author === '끼뀨');
+    const toggle = el('button', { type: 'button', class: 'mark-btn' + (mine ? ' on' : ''), 'aria-pressed': mine ? 'true' : 'false',
+      'aria-label': mine ? '읽음 표시 지우기' : '봤어 표시', text: mine ? `${mine.mark} 봤어` : '👀 봤어' });
+    toggle.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      toggle.disabled = true;
+      try {
+        const r = { item: it.id, author: '끼뀨', mark: mine ? '' : '👀', sent_at: new Date().toISOString() };
+        await putNew('inbox/replies', r, mine ? '읽음 지움' : '읽음');
+        state.pendingReplies.push(r);
+        renderFeedList();
+        pollSoon();
+      } catch (err) { toggle.disabled = false; toggle.textContent = `다시 — ${err.message}`; }
+    });
+    const others = reads.filter((r) => r.author !== '끼뀨');
+    return el('div', { class: 'reads' },
+      others.map((r) => el('span', { class: 'read-chip' + (r.pending ? ' pending' : ''), title: `${r.author} · ${when(r.at)}` },
+        avatar(r.author, true), el('span', { text: r.mark }))),
+      toggle);
+  }
+
   function card(it, { pending = false } = {}) {
-    const replies = [...(it.replies || []).map((r) => ({ ...r })), ...state.pendingReplies.filter((r) => r.item === it.id).map((r) => ({ ...r, at: r.sent_at, pending: true }))];
+    const replies = [...(it.replies || []).map((r) => ({ ...r })), ...state.pendingReplies.filter((r) => r.item === it.id && String(r.text || '').trim()).map((r) => ({ ...r, at: r.sent_at, pending: true }))];
     // 옛 북마크는 카드에 따로 표시하지 않는다 (끼뀨 11/23 "굳이 안 달아도") — 위 필터로만 거른다
     const from = { pc: 'PC에서', agent: '에이전트가', bookmark: '북마크' }[it.from] || '폰에서';
     return el('article', { class: 'card' },
@@ -377,6 +414,7 @@
         threadBlock(it.tweet || {}),
         commentsBlock(it),
         (it.tags || []).length ? el('div', { class: 'tags' }, it.tags.map((t) => el('span', { class: 'tag', text: `#${t}` }))) : null,
+        pending ? null : readsRow(it),
         el('div', { class: 'thread' },
           replies.map((r) => el('div', { class: 'reply' + (r.pending ? ' pending' : '') }, avatar(r.author, true),
             el('div', {}, el('div', { class: 'meta' }, el('b', { text: r.author }), ` · ${r.pending ? '보내는 중' : when(r.at)}`),
@@ -424,9 +462,10 @@
     const replied = state.data.items.filter((i) => (i.replies || []).some((r) => r.author !== '끼뀨')).length;
     const chip = (key, label) => el('button', { class: 'chip' + (state.filter === key ? ' on' : ''), text: label, onclick: () => { state.filter = key; renderFilters(); renderFeedList(); } });
     const marks = state.data.items.filter((i) => i.from === 'bookmark').length;
+    const unseen = state.data.items.filter((i) => !currentReads(i).some((r) => r.author !== '끼뀨') && !(i.replies || []).some((r) => r.author !== '끼뀨')).length;
     box.replaceChildren(chip('all', '전체'),
       ...(marks ? [chip('sent', '보낸 것'), chip('bookmark', `옛 북마크 ${marks}`)] : []),
-      chip('replied', `답 달림 ${replied}`), ...tags.map((t) => chip('#' + t, '#' + t)));
+      chip('replied', `답 달림 ${replied}`), chip('unseen', `아무도 안 봄 ${unseen}`), ...tags.map((t) => chip('#' + t, '#' + t)));
   }
 
   let pollTimer = null;
